@@ -2,7 +2,7 @@ import type {
   OnboardingEventName,
   OnboardingSurveyEventName,
   PaywallJourneyEventName,
-} from '@prodinfos/shared';
+} from './sdk-contract.js';
 
 /**
  * Arbitrary key/value payload sent with an event.

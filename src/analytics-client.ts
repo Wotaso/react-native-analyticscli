@@ -5,8 +5,8 @@ import {
   type OnboardingEventName,
   type OnboardingSurveyEventName,
   type PaywallJourneyEventName,
-} from '@prodinfos/shared';
-import { IngestBatchSchema, type IngestBatch } from '@prodinfos/query-dsl';
+} from './sdk-contract.js';
+import { validateIngestBatch, type IngestBatch } from './ingest-validation.js';
 import {
   DEFAULT_COOKIE_MAX_AGE_SECONDS,
   DEFAULT_SESSION_TIMEOUT_MS,
@@ -81,34 +81,37 @@ export class AnalyticsClient {
   private onboardingStepViewsSeen = new Set<string>();
 
   constructor(options: AnalyticsClientOptions) {
-    this.apiKey = options.apiKey;
-    this.projectId = options.projectId;
-    this.endpoint = options.endpoint.replace(/\/$/, '');
-    this.batchSize = Math.min(options.batchSize ?? 20, DEFAULT_INGEST_LIMITS.maxBatchSize);
-    this.flushIntervalMs = options.flushIntervalMs ?? 5000;
-    this.maxRetries = options.maxRetries ?? 4;
-    this.debug = options.debug ?? false;
-    this.platform = options.platform ?? detectDefaultPlatform();
-    this.appVersion = options.appVersion;
-    this.context = { ...(options.context ?? {}) };
+    const normalizedOptions = this.normalizeOptions(options);
+
+    this.apiKey = this.readRequiredStringOption(normalizedOptions.apiKey);
+    this.projectId = this.readRequiredStringOption(normalizedOptions.projectId);
+    this.endpoint = this.readRequiredStringOption(normalizedOptions.endpoint).replace(/\/$/, '');
+    this.batchSize = Math.min(normalizedOptions.batchSize ?? 20, DEFAULT_INGEST_LIMITS.maxBatchSize);
+    this.flushIntervalMs = normalizedOptions.flushIntervalMs ?? 5000;
+    this.maxRetries = normalizedOptions.maxRetries ?? 4;
+    this.debug = normalizedOptions.debug ?? false;
+    this.platform = normalizedOptions.platform ?? detectDefaultPlatform();
+    this.appVersion = normalizedOptions.appVersion;
+    this.context = { ...(normalizedOptions.context ?? {}) };
     this.runtimeEnv = detectRuntimeEnv();
-    const useCookieStorage = options.useCookieStorage ?? Boolean(options.cookieDomain);
+    const useCookieStorage = normalizedOptions.useCookieStorage ?? Boolean(normalizedOptions.cookieDomain);
     const cookieStorage = resolveCookieStorageAdapter(
       useCookieStorage,
-      options.cookieDomain,
-      options.cookieMaxAgeSeconds ?? DEFAULT_COOKIE_MAX_AGE_SECONDS,
+      normalizedOptions.cookieDomain,
+      normalizedOptions.cookieMaxAgeSeconds ?? DEFAULT_COOKIE_MAX_AGE_SECONDS,
     );
     const browserStorage = resolveBrowserStorageAdapter();
     this.storage =
-      options.storage ??
+      normalizedOptions.storage ??
       (cookieStorage && browserStorage
         ? combineStorageAdapters(cookieStorage, browserStorage)
         : cookieStorage ?? browserStorage);
     this.storageReadsAreAsync = this.detectAsyncStorageReads();
-    this.sessionTimeoutMs = options.sessionTimeoutMs ?? DEFAULT_SESSION_TIMEOUT_MS;
-    this.dedupeOnboardingStepViewsPerSession = options.dedupeOnboardingStepViewsPerSession ?? false;
-    const providedAnonId = options.anonId?.trim();
-    const providedSessionId = options.sessionId?.trim();
+    this.sessionTimeoutMs = normalizedOptions.sessionTimeoutMs ?? DEFAULT_SESSION_TIMEOUT_MS;
+    this.dedupeOnboardingStepViewsPerSession =
+      normalizedOptions.dedupeOnboardingStepViewsPerSession ?? false;
+    const providedAnonId = normalizedOptions.anonId?.trim();
+    const providedSessionId = normalizedOptions.sessionId?.trim();
     this.hasExplicitAnonId = Boolean(providedAnonId);
     this.hasExplicitSessionId = Boolean(providedSessionId);
 
@@ -443,15 +446,15 @@ export class AnalyticsClient {
       events: batch,
     };
 
-    const parsed = IngestBatchSchema.safeParse(payload);
-    if (!parsed.success) {
-      this.log('Validation failed, dropping batch', parsed.error.flatten());
+    const validation = validateIngestBatch(payload);
+    if (!validation.success) {
+      this.log('Validation failed, dropping batch', validation.reason);
       this.isFlushing = false;
       return;
     }
 
     try {
-      await this.sendWithRetry(parsed.data);
+      await this.sendWithRetry(payload);
     } catch (error) {
       this.log('Send failed permanently, requeueing batch', error);
       this.queue = [...batch, ...this.queue];
@@ -878,6 +881,22 @@ export class AnalyticsClient {
       region: this.context.region,
       city: this.context.city,
     };
+  }
+
+  private normalizeOptions(options: unknown): Partial<AnalyticsClientOptions> {
+    if (typeof options !== 'object' || options === null) {
+      return {};
+    }
+
+    return options as Partial<AnalyticsClientOptions>;
+  }
+
+  private readRequiredStringOption(value: unknown): string {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    return value.trim();
   }
 
   private log(message: string, data?: unknown): void {

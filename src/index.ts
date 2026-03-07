@@ -9,7 +9,7 @@ export {
   PAYWALL_ANCHOR_EVENT_CANDIDATES,
   PAYWALL_SKIP_EVENT_CANDIDATES,
   PURCHASE_SUCCESS_EVENT_CANDIDATES,
-} from '@prodinfos/shared';
+} from './sdk-contract.js';
 
 export type {
   OnboardingEventName,
@@ -17,7 +17,7 @@ export type {
   PurchaseEventName,
   PaywallJourneyEventName,
   OnboardingSurveyEventName,
-} from '@prodinfos/shared';
+} from './sdk-contract.js';
 
 export type {
   AnalyticsClientOptions,

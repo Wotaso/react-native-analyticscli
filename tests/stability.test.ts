@@ -98,3 +98,51 @@ test('ready() resolves even when async storage adapters fail', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('init() tolerates non-string required options from untyped JS call sites', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ input, init });
+    return new Response(JSON.stringify({ accepted: true }), { status: 202 });
+  }) as typeof globalThis.fetch;
+
+  const client = init({
+    apiKey: null as unknown as string,
+    projectId: null as unknown as string,
+    endpoint: null as unknown as string,
+    flushIntervalMs: 60_000,
+    maxRetries: 0,
+  });
+
+  try {
+    assert.doesNotThrow(() => client.track('app_open'));
+    await assert.doesNotReject(client.flush());
+    assert.equal(calls.length, 0);
+  } finally {
+    client.shutdown();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('init() tolerates missing options object from untyped JS call sites', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ input, init });
+    return new Response(JSON.stringify({ accepted: true }), { status: 202 });
+  }) as typeof globalThis.fetch;
+
+  const client = init(undefined as unknown as never);
+
+  try {
+    assert.doesNotThrow(() => client.track('app_open'));
+    await assert.doesNotReject(client.flush());
+    assert.equal(calls.length, 0);
+  } finally {
+    client.shutdown();
+    globalThis.fetch = originalFetch;
+  }
+});

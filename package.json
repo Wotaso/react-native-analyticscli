@@ -1,24 +1,36 @@
 {
   "name": "@prodinfos/sdk-ts",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src --ext .ts",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts",
     "test": "tsx --test tests/**/*.test.ts",
     "test:coverage": "node --experimental-test-coverage --import tsx --test tests/**/*.test.ts",
     "test:coverage:gate": "node ../../scripts/coverage-gate.mjs sdk",
     "quality": "pnpm test:coverage:gate"
-  },
-  "dependencies": {
-    "@prodinfos/shared": "workspace:*",
-    "@prodinfos/query-dsl": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.5",

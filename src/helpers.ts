@@ -1,4 +1,4 @@
-import { RESERVED_PII_KEYS } from '@prodinfos/shared';
+import { RESERVED_PII_KEYS } from './sdk-contract.js';
 import type { AnalyticsStorageAdapter, EventProperties } from './types.js';
 
 export const nowIso = (): string => new Date().toISOString();
