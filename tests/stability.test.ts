@@ -1,0 +1,100 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { init, ONBOARDING_EVENTS, PAYWALL_EVENTS } from '../src/index.js';
+
+const PROJECT_ID = '11111111-1111-4111-8111-111111111111';
+
+test('public SDK API remains no-throw under transient network failures', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+  let failNextRequest = true;
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ input, init });
+    if (failNextRequest) {
+      failNextRequest = false;
+      throw new Error('network unavailable');
+    }
+
+    return new Response(JSON.stringify({ accepted: true }), {
+      status: 202,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof globalThis.fetch;
+
+  const client = init({
+    apiKey: 'pi_live_test',
+    projectId: PROJECT_ID,
+    endpoint: 'https://collector.prodinfos.com',
+    batchSize: 50,
+    flushIntervalMs: 60_000,
+    maxRetries: 0,
+  });
+
+  try {
+    assert.doesNotThrow(() => client.identify('user-1', { plan: 'pro' }));
+    assert.doesNotThrow(() => client.track('app_open'));
+    assert.doesNotThrow(() => client.screen('home'));
+    assert.doesNotThrow(() => client.page('settings'));
+    assert.doesNotThrow(() => client.feedback('great', 5));
+    assert.doesNotThrow(() => client.trackOnboardingEvent(ONBOARDING_EVENTS.START));
+    assert.doesNotThrow(() =>
+      client.trackPaywallEvent(PAYWALL_EVENTS.SHOWN, {
+        source: 'onboarding',
+        paywallId: 'default',
+      }),
+    );
+    assert.doesNotThrow(() =>
+      client.trackOnboardingSurveyResponse({
+        surveyKey: 'onboarding',
+        questionKey: 'goal',
+        answerType: 'single_choice',
+        responseKey: 'growth',
+      }),
+    );
+
+    await assert.doesNotReject(client.flush());
+    await assert.doesNotReject(client.flush());
+
+    assert.equal(calls.length, 2);
+    const secondPayload = JSON.parse(String(calls[1]?.init?.body)) as {
+      events: Array<{ eventName: string }>;
+    };
+    assert.ok(secondPayload.events.length >= 8);
+  } finally {
+    client.shutdown();
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('ready() resolves even when async storage adapters fail', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    return new Response(JSON.stringify({ accepted: true }), { status: 202 });
+  }) as typeof globalThis.fetch;
+
+  const client = init({
+    apiKey: 'pi_live_test',
+    projectId: PROJECT_ID,
+    endpoint: 'https://collector.prodinfos.com',
+    storage: {
+      getItem: async () => {
+        throw new Error('storage read failed');
+      },
+      setItem: async () => {
+        throw new Error('storage write failed');
+      },
+    },
+    flushIntervalMs: 60_000,
+    maxRetries: 0,
+  });
+
+  try {
+    await assert.doesNotReject(client.ready());
+    assert.doesNotThrow(() => client.track('app_open'));
+    await assert.doesNotReject(client.flush());
+  } finally {
+    client.shutdown();
+    globalThis.fetch = originalFetch;
+  }
+});
