@@ -1,6 +1,6 @@
 {
   "name": "@prodinfos/sdk-ts",
-  "version": "0.1.0-preview.0",
+  "version": "0.1.0-preview.1",
   "description": "TypeScript SDK for sending onboarding, paywall, purchase and survey analytics events to Prodinfos.",
   "license": "MIT",
   "type": "module",
