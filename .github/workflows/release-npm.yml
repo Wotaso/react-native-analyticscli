@@ -62,10 +62,25 @@ jobs:
       - name: Run quality checks
         run: npm run quality
 
+      - name: Check whether npm version already exists
+        id: npm_version_check
+        run: |
+          version="${{ steps.release_meta.outputs.version }}"
+          if npm view "@prodinfos/sdk-ts@${version}" version >/dev/null 2>&1; then
+            echo "already_published=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "already_published=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Publish package
+        if: ${{ steps.npm_version_check.outputs.already_published != 'true' }}
         run: npm publish --access public --tag "${{ steps.release_meta.outputs.dist_tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Skip publish (already on npm)
+        if: ${{ steps.npm_version_check.outputs.already_published == 'true' }}
+        run: echo "Version ${{ steps.release_meta.outputs.version }} already exists on npm; skipping publish."
 
       - name: Create or update GitHub release
         env:
@@ -74,6 +89,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.release_meta.outputs.version }}
           RELEASE_DIST_TAG: ${{ steps.release_meta.outputs.dist_tag }}
           RELEASE_IS_PRERELEASE: ${{ steps.release_meta.outputs.prerelease }}
+          RELEASE_ALREADY_PUBLISHED: ${{ steps.npm_version_check.outputs.already_published }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
           notes_file="$(mktemp)"
@@ -82,6 +98,10 @@ jobs:
             echo "Published to npm as [@prodinfos/sdk-ts@${RELEASE_VERSION}](${npm_url})."
             echo
             echo "npm dist-tag: \`${RELEASE_DIST_TAG}\`."
+            if [[ "${RELEASE_ALREADY_PUBLISHED}" == "true" ]]; then
+              echo
+              echo "Publish step was skipped because this version was already present on npm."
+            fi
           } > "${notes_file}"
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
