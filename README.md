@@ -1,6 +1,6 @@
 # @prodinfos/sdk-ts
 
-TypeScript SDK for sending onboarding, paywall, purchase and survey analytics events to the Prodinfos ingest API.
+TypeScript SDK for tenant developers sending onboarding, paywall, purchase, and survey analytics events to the Prodinfos ingest API.
 
 Current npm release channel: preview / experimental beta.
 
@@ -25,3 +25,5 @@ analytics.trackOnboardingEvent(ONBOARDING_EVENTS.START, {
   onboardingFlowId: 'onboarding_v1',
 });
 ```
+
+Use your project-specific write key and `projectId` from the Prodinfos dashboard in your workspace.
