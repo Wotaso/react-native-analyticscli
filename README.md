@@ -29,3 +29,4 @@ analytics.trackOnboardingEvent(ONBOARDING_EVENTS.START, {
 Use your project-specific write key and `projectId` from the Prodinfos dashboard in your workspace.
 
 Source of truth for this package is the private monorepo path `packages/sdk-ts`.
+Public mirror source prefix: `packages/sdk-ts`.
