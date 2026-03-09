@@ -2,10 +2,12 @@
 
 TypeScript SDK for sending onboarding, paywall, purchase and survey analytics events to the Prodinfos ingest API.
 
+Current npm release channel: preview / experimental beta.
+
 ## Install
 
 ```bash
-npm install @prodinfos/sdk-ts
+npm install @prodinfos/sdk-ts@preview
 ```
 
 ## Usage
