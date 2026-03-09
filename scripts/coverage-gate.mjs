@@ -38,9 +38,18 @@ if (run.status !== 0) {
 const parseCoverageRows = (rawOutput) => {
   const rows = new Map();
   const lines = rawOutput.split(/\r?\n/);
+  let currentGroup = '';
 
   for (const line of lines) {
     const normalized = line.replace(/^#\s?/, '').trimEnd();
+
+    const groupMatch = normalized.match(/^(.+?)\s+\|\s*\|\s*\|\s*\|\s*$/);
+    if (groupMatch) {
+      const group = groupMatch[1].trim().replace(/\\/g, '/');
+      currentGroup = group && group !== 'all files' ? group : '';
+      continue;
+    }
+
     const match = normalized.match(
       /^(.+?)\s+\|\s+([0-9]+(?:\.[0-9]+)?)\s+\|\s+([0-9]+(?:\.[0-9]+)?)\s+\|\s+([0-9]+(?:\.[0-9]+)?)\s+\|/,
     );
@@ -48,7 +57,11 @@ const parseCoverageRows = (rawOutput) => {
       continue;
     }
 
-    const file = match[1].trim().replace(/\\/g, '/');
+    let file = match[1].trim().replace(/\\/g, '/');
+    if (file !== 'all files' && !file.includes('/') && currentGroup) {
+      file = `${currentGroup}/${file}`;
+    }
+
     rows.set(file, {
       line: Number(match[2]),
       branch: Number(match[3]),
