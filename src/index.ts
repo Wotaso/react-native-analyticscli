@@ -33,6 +33,9 @@ export type {
   OnboardingSurveyAnswerType,
   OnboardingSurveyResponseInput,
   PaywallEventProperties,
+  PaywallTracker,
+  PaywallTrackerDefaults,
+  PaywallTrackerProperties,
 } from './types.js';
 
 export { AnalyticsClient } from './analytics-client.js';

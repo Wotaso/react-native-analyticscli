@@ -116,6 +116,20 @@ export type OnboardingTracker = {
   ) => OnboardingStepTracker;
 };
 
+export type PaywallTrackerDefaults = PaywallEventProperties;
+
+export type PaywallTrackerProperties = Partial<PaywallEventProperties>;
+
+export type PaywallTracker = {
+  track: (eventName: PaywallJourneyEventName, properties?: PaywallTrackerProperties) => void;
+  shown: (properties?: PaywallTrackerProperties) => void;
+  skip: (properties?: PaywallTrackerProperties) => void;
+  purchaseStarted: (properties?: PaywallTrackerProperties) => void;
+  purchaseSuccess: (properties?: PaywallTrackerProperties) => void;
+  purchaseFailed: (properties?: PaywallTrackerProperties) => void;
+  purchaseCancel: (properties?: PaywallTrackerProperties) => void;
+};
+
 export type QueuedEvent = {
   eventId: string;
   eventName: string;

@@ -292,6 +292,101 @@ test('typed onboarding/paywall wrappers emit canonical event names', async () =>
   });
 });
 
+test('createPaywallTracker() applies shared defaults and supports all journey helpers', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init({
+      apiKey: 'pi_live_test',
+      projectId: PROJECT_ID,
+      endpoint: 'https://collector.prodinfos.com',
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      const paywall = client.createPaywallTracker({
+        source: 'onboarding',
+        paywallId: 'default_paywall',
+        appVersion: '2.1.0',
+        experimentVariant: 'B',
+      });
+
+      paywall.shown({ fromScreen: 'onboarding_offer' });
+      paywall.purchaseStarted({ packageId: 'annual' });
+      paywall.purchaseSuccess({ packageId: 'annual' });
+      paywall.track(PAYWALL_EVENTS.SKIP, { source: 'settings' });
+
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        events: Array<{ eventName: string; properties?: Record<string, unknown> }>;
+      };
+
+      assert.deepEqual(
+        payload.events.map((event) => event.eventName),
+        [
+          PAYWALL_EVENTS.SHOWN,
+          PURCHASE_EVENTS.STARTED,
+          PURCHASE_EVENTS.SUCCESS,
+          PAYWALL_EVENTS.SKIP,
+        ],
+      );
+
+      const first = payload.events[0]?.properties ?? {};
+      assert.equal(first.source, 'onboarding');
+      assert.equal(first.paywallId, 'default_paywall');
+      assert.equal(first.appVersion, '2.1.0');
+      assert.equal(first.experimentVariant, 'B');
+      assert.equal(first.fromScreen, 'onboarding_offer');
+
+      const override = payload.events[3]?.properties ?? {};
+      assert.equal(override.source, 'settings');
+      assert.equal(override.paywallId, 'default_paywall');
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
+test('setUser() identifies on login and clears user linkage on logout-style calls', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init({
+      apiKey: 'pi_live_test',
+      projectId: PROJECT_ID,
+      endpoint: 'https://collector.prodinfos.com',
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      client.setUser(' user_123 ', { plan: 'pro' });
+      client.track('feature:opened');
+      client.setUser('');
+      client.track('feature:closed');
+
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        events: Array<{ eventName: string; userId?: string | null; properties?: Record<string, unknown> }>;
+      };
+
+      assert.deepEqual(
+        payload.events.map((event) => event.eventName),
+        ['identify', 'feature:opened', 'feature:closed'],
+      );
+      assert.equal(payload.events[0]?.userId, 'user_123');
+      assert.equal(payload.events[1]?.userId, 'user_123');
+      assert.equal(payload.events[2]?.userId, null);
+      assert.equal(payload.events[0]?.properties?.plan, 'pro');
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
 test('debug logging is disabled by default and enabled with debug=true', async () => {
   const originalConsoleDebug = console.debug;
   const debugCalls: unknown[][] = [];

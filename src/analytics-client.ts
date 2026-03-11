@@ -2,6 +2,8 @@ import {
   DEFAULT_INGEST_LIMITS,
   ONBOARDING_EVENTS,
   ONBOARDING_SURVEY_EVENTS,
+  PAYWALL_EVENTS,
+  PURCHASE_EVENTS,
   type OnboardingEventName,
   type OnboardingSurveyEventName,
   type PaywallJourneyEventName,
@@ -44,6 +46,9 @@ import type {
   OnboardingTrackerSurveyInput,
   OnboardingSurveyResponseInput,
   PaywallEventProperties,
+  PaywallTracker,
+  PaywallTrackerDefaults,
+  PaywallTrackerProperties,
   QueuedEvent,
 } from './types.js';
 
@@ -169,15 +174,21 @@ export class AnalyticsClient {
    * Anonymous history remains linked by anonId/sessionId.
    */
   public identify(userId: string, traits?: EventProperties): void {
+    const normalizedUserId = this.readRequiredStringOption(userId);
+    if (!normalizedUserId) {
+      this.log('Dropping identify call without required `userId`');
+      return;
+    }
+
     if (this.shouldDeferEventsUntilHydrated()) {
       const deferredTraits = this.cloneProperties(traits);
       this.deferEventUntilHydrated(() => {
-        this.identify(userId, deferredTraits);
+        this.identify(normalizedUserId, deferredTraits);
       });
       return;
     }
 
-    this.userId = userId;
+    this.userId = normalizedUserId;
     const sessionId = this.getSessionId();
     this.enqueue({
       eventId: randomId(),
@@ -185,13 +196,37 @@ export class AnalyticsClient {
       ts: nowIso(),
       sessionId,
       anonId: this.anonId,
-      userId,
+      userId: normalizedUserId,
       properties: this.withRuntimeMetadata(traits, sessionId),
       platform: this.platform,
       appVersion: this.appVersion,
       ...this.withEventContext(),
       type: 'identify',
     });
+  }
+
+  /**
+   * Convenience helper for login/logout boundaries.
+   * - pass a non-empty user id to emit an identify event
+   * - pass null/undefined/empty string to clear user linkage
+   */
+  public setUser(userId: string | null | undefined, traits?: EventProperties): void {
+    const normalizedUserId =
+      typeof userId === 'string' ? this.readRequiredStringOption(userId) : '';
+
+    if (!normalizedUserId) {
+      this.clearUser();
+      return;
+    }
+
+    this.identify(normalizedUserId, traits);
+  }
+
+  /**
+   * Clears the current identified user from in-memory SDK state.
+   */
+  public clearUser(): void {
+    this.userId = null;
   }
 
   /**
@@ -333,6 +368,44 @@ export class AnalyticsClient {
       skip: (properties) => track(ONBOARDING_EVENTS.SKIP, properties),
       surveyResponse,
       step,
+    };
+  }
+
+  /**
+   * Creates a scoped paywall tracker that applies shared paywall defaults to every journey event.
+   * Useful when a flow has a stable `source`, `paywallId`, or experiment metadata.
+   */
+  public createPaywallTracker(defaults: PaywallTrackerDefaults): PaywallTracker {
+    const { source: rawDefaultSource, ...defaultProperties } = defaults;
+    const defaultSource = this.readRequiredStringOption(rawDefaultSource);
+    if (!defaultSource) {
+      this.log('createPaywallTracker() called without a valid default `source`');
+    }
+
+    const mergeProperties = (properties?: PaywallTrackerProperties): PaywallEventProperties => {
+      const mergedSource = this.readRequiredStringOption(
+        this.readPropertyAsString(properties?.source) ?? defaultSource,
+      );
+
+      return {
+        ...defaultProperties,
+        ...(properties ?? {}),
+        source: mergedSource,
+      };
+    };
+
+    const track = (eventName: PaywallJourneyEventName, properties?: PaywallTrackerProperties) => {
+      this.trackPaywallEvent(eventName, mergeProperties(properties));
+    };
+
+    return {
+      track,
+      shown: (properties) => track(PAYWALL_EVENTS.SHOWN, properties),
+      skip: (properties) => track(PAYWALL_EVENTS.SKIP, properties),
+      purchaseStarted: (properties) => track(PURCHASE_EVENTS.STARTED, properties),
+      purchaseSuccess: (properties) => track(PURCHASE_EVENTS.SUCCESS, properties),
+      purchaseFailed: (properties) => track(PURCHASE_EVENTS.FAILED, properties),
+      purchaseCancel: (properties) => track(PURCHASE_EVENTS.CANCEL, properties),
     };
   }
 

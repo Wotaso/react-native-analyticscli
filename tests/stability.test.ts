@@ -33,6 +33,9 @@ test('public SDK API remains no-throw under transient network failures', async (
 
   try {
     assert.doesNotThrow(() => client.identify('user-1', { plan: 'pro' }));
+    assert.doesNotThrow(() => client.setUser('user-2', { plan: 'enterprise' }));
+    assert.doesNotThrow(() => client.setUser(null));
+    assert.doesNotThrow(() => client.clearUser());
     assert.doesNotThrow(() => client.track('app_open'));
     assert.doesNotThrow(() => client.screen('home'));
     assert.doesNotThrow(() => client.page('settings'));
@@ -44,6 +47,14 @@ test('public SDK API remains no-throw under transient network failures', async (
         paywallId: 'default',
       }),
     );
+    assert.doesNotThrow(() => {
+      const paywall = client.createPaywallTracker({
+        source: 'onboarding',
+        paywallId: 'default',
+      });
+      paywall.shown();
+      paywall.purchaseSuccess({ packageId: 'annual' });
+    });
     assert.doesNotThrow(() =>
       client.trackOnboardingSurveyResponse({
         surveyKey: 'onboarding',
@@ -60,7 +71,7 @@ test('public SDK API remains no-throw under transient network failures', async (
     const secondPayload = JSON.parse(String(calls[1]?.init?.body)) as {
       events: Array<{ eventName: string }>;
     };
-    assert.ok(secondPayload.events.length >= 8);
+    assert.ok(secondPayload.events.length >= 11);
   } finally {
     client.shutdown();
     globalThis.fetch = originalFetch;
