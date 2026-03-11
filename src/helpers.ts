@@ -80,16 +80,85 @@ export const writeStorageSync = (
   }
 };
 
+const readTrimmedString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const normalizePlatformValue = (value: unknown): 'web' | 'ios' | 'android' | undefined => {
+  const normalized = readTrimmedString(value)?.toLowerCase();
+  if (normalized === 'web' || normalized === 'ios' || normalized === 'android') {
+    return normalized;
+  }
+  return undefined;
+};
+
+const readGlobalPlatformOs = (): 'web' | 'ios' | 'android' | undefined => {
+  const withPlatform = globalThis as typeof globalThis & {
+    Platform?: { OS?: unknown };
+  };
+
+  const fromPlatform = normalizePlatformValue(withPlatform.Platform?.OS);
+  if (fromPlatform) {
+    return fromPlatform;
+  }
+
+  const withExpoPlatform = globalThis as typeof globalThis & {
+    expo?: { modules?: { ExpoPlatform?: { osName?: unknown } } };
+  };
+
+  return normalizePlatformValue(withExpoPlatform.expo?.modules?.ExpoPlatform?.osName);
+};
+
 export const detectDefaultPlatform = (): string | undefined => {
+  const detectedNativePlatform = readGlobalPlatformOs();
+  if (detectedNativePlatform) {
+    return detectedNativePlatform;
+  }
+
   if (typeof navigator === 'undefined') {
     return undefined;
   }
 
   if (navigator.product === 'ReactNative') {
-    return 'react-native';
+    return undefined;
   }
 
   return 'web';
+};
+
+export const detectDefaultAppVersion = (): string | undefined => {
+  const withExpoModules = globalThis as typeof globalThis & {
+    expo?: {
+      modules?: {
+        ExpoApplication?: {
+          nativeApplicationVersion?: unknown;
+          applicationVersion?: unknown;
+          version?: unknown;
+        };
+      };
+    };
+  };
+
+  const expoApp = withExpoModules.expo?.modules?.ExpoApplication;
+  const candidates: unknown[] = [
+    expoApp?.nativeApplicationVersion,
+    expoApp?.applicationVersion,
+    expoApp?.version,
+  ];
+
+  for (const candidate of candidates) {
+    const value = readTrimmedString(candidate);
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
 };
 
 export const detectRuntimeEnv = (): 'production' | 'development' => {

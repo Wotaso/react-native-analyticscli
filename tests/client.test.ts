@@ -142,6 +142,23 @@ test('track() flushes a valid ingest batch', async () => {
   });
 });
 
+test('init() supports the short apiKey form', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init('pi_live_test');
+
+    try {
+      client.track('onboarding:start');
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const headers = (calls[0]?.init?.headers ?? {}) as Record<string, string>;
+      assert.equal(headers['x-api-key'], 'pi_live_test');
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
 test('uses the default collector endpoint when endpoint is omitted', async () => {
   await withMockedGlobals(async (calls) => {
     const client = init({
@@ -158,6 +175,32 @@ test('uses the default collector endpoint when endpoint is omitted', async () =>
 
       assert.equal(calls.length, 1);
       assert.equal(String(calls[0]?.input), 'https://collector.prodinfos.com/v1/collect');
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
+test('apiKey-only init payload is valid without projectId', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init({
+      apiKey: 'pi_live_test',
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      client.track('onboarding:start');
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        projectId?: string;
+        events: Array<{ eventName: string }>;
+      };
+      assert.equal(payload.projectId, undefined);
+      assert.equal(payload.events[0]?.eventName, 'onboarding:start');
     } finally {
       client.shutdown();
     }
@@ -213,6 +256,30 @@ test('initFromEnv() resolves credentials from default env keys', async () => {
   });
 });
 
+test('initFromEnv() works with api key only', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = initFromEnv({
+      env: {
+        PRODINFOS_WRITE_KEY: 'pi_live_test',
+      },
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      client.track('onboarding:start');
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as { projectId?: string };
+      assert.equal(payload.projectId, undefined);
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
 test('initFromEnv() supports explicit apiKey/projectId overrides', async () => {
   await withMockedGlobals(async (calls) => {
     const client = initFromEnv({
@@ -246,9 +313,9 @@ test('initFromEnv() in noop mode returns a safe no-op client when config is miss
   await withMockedGlobals(async (calls) => {
     let missingConfig: {
       missingApiKey: boolean;
-      missingProjectId: boolean;
+      missingProjectId?: boolean;
       searchedApiKeyEnvKeys: string[];
-      searchedProjectIdEnvKeys: string[];
+      searchedProjectIdEnvKeys?: string[];
     } | null = null;
 
     const client = initFromEnv({
@@ -269,7 +336,7 @@ test('initFromEnv() in noop mode returns a safe no-op client when config is miss
 
       assert.equal(calls.length, 0);
       assert.equal(missingConfig?.missingApiKey, true);
-      assert.equal(missingConfig?.missingProjectId, true);
+      assert.equal(missingConfig?.missingProjectId, false);
       assert.deepEqual(missingConfig?.searchedApiKeyEnvKeys, ['PRODINFOS_WRITE_KEY', 'NEXT_PUBLIC_PRODINFOS_WRITE_KEY', 'EXPO_PUBLIC_PRODINFOS_WRITE_KEY', 'VITE_PRODINFOS_WRITE_KEY']);
       assert.deepEqual(missingConfig?.searchedProjectIdEnvKeys, ['PRODINFOS_PROJECT_ID', 'NEXT_PUBLIC_PRODINFOS_PROJECT_ID', 'EXPO_PUBLIC_PRODINFOS_PROJECT_ID', 'VITE_PRODINFOS_PROJECT_ID']);
     } finally {

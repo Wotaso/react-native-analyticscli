@@ -160,12 +160,12 @@ export type QueuedEvent = {
 export type AnalyticsClientOptions = {
   /**
    * Project write key.
-   * If omitted, the client becomes a safe no-op until valid credentials are provided.
+   * If omitted, the client becomes a safe no-op until a valid key is provided.
    */
   apiKey?: string;
   /**
-   * Internal project id from the Prodinfos dashboard.
-   * If omitted, the client becomes a safe no-op until valid credentials are provided.
+   * Optional project id from the Prodinfos dashboard.
+   * Not required for normal ingestion; primarily for legacy compatibility and explicit scoping.
    */
   projectId?: string;
   /**
@@ -221,9 +221,15 @@ export type InitFromEnvMissingConfigMode = 'noop' | 'throw';
 
 export type InitFromEnvMissingConfig = {
   missingApiKey: boolean;
-  missingProjectId: boolean;
+  /**
+   * @deprecated projectId is optional for ingest; retained for backward compatibility.
+   */
+  missingProjectId?: boolean;
   searchedApiKeyEnvKeys: string[];
-  searchedProjectIdEnvKeys: string[];
+  /**
+   * @deprecated projectId is optional for ingest; retained for backward compatibility.
+   */
+  searchedProjectIdEnvKeys?: string[];
 };
 
 export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey' | 'projectId'> & {
@@ -237,7 +243,7 @@ export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey' | 'projec
    */
   apiKey?: string;
   /**
-   * Explicit project id override.
+   * Explicit project id override (optional).
    */
   projectId?: string;
   /**
@@ -245,7 +251,7 @@ export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey' | 'projec
    */
   apiKeyEnvKeys?: string[];
   /**
-   * Candidate env keys resolved in order.
+   * Candidate env keys resolved in order (optional fallback for legacy payloads).
    */
   projectIdEnvKeys?: string[];
   /**
@@ -259,3 +265,5 @@ export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey' | 'projec
    */
   onMissingConfig?: (details: InitFromEnvMissingConfig) => void;
 };
+
+export type InitInput = InitOptions | string;

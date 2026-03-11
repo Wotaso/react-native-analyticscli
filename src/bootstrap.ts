@@ -57,16 +57,12 @@ const toMissingMessage = (details: InitFromEnvMissingConfig): string => {
     parts.push(`apiKey (searched: ${details.searchedApiKeyEnvKeys.join(', ') || 'none'})`);
   }
 
-  if (details.missingProjectId) {
-    parts.push(`projectId (searched: ${details.searchedProjectIdEnvKeys.join(', ') || 'none'})`);
-  }
-
   return `[prodinfos-sdk] Missing required configuration: ${parts.join('; ')}.`;
 };
 
 /**
  * Minimal host-app bootstrap helper.
- * Resolves `apiKey` and `projectId` from explicit options or env-like objects.
+ * Resolves `apiKey` (required) and optional `projectId` from explicit options or env-like objects.
  */
 export const initFromEnv = (options: InitFromEnvOptions = {}): AnalyticsClient => {
   const {
@@ -91,12 +87,12 @@ export const initFromEnv = (options: InitFromEnvOptions = {}): AnalyticsClient =
 
   const missingConfig: InitFromEnvMissingConfig = {
     missingApiKey: resolvedApiKey.length === 0,
-    missingProjectId: resolvedProjectId.length === 0,
+    missingProjectId: false,
     searchedApiKeyEnvKeys: resolvedApiKeyEnvKeys,
     searchedProjectIdEnvKeys: resolvedProjectIdEnvKeys,
   };
 
-  if (missingConfig.missingApiKey || missingConfig.missingProjectId) {
+  if (missingConfig.missingApiKey) {
     onMissingConfig?.(missingConfig);
 
     if (missingConfigMode === 'throw') {

@@ -21,21 +21,29 @@ npm install @prodinfos/sdk-ts
 ## Usage (Low Boilerplate)
 
 ```ts
-import { initFromEnv, ONBOARDING_EVENTS } from '@prodinfos/sdk-ts';
+import { init, ONBOARDING_EVENTS } from '@prodinfos/sdk-ts';
 
-const analytics = initFromEnv();
+const analytics = init('<YOUR_APP_KEY>'); // short form
 
 analytics.trackOnboardingEvent(ONBOARDING_EVENTS.START, {
   onboardingFlowId: 'onboarding_v1',
 });
 ```
 
-By default, `initFromEnv()` resolves credentials from these env keys:
+`init(...)` accepts either:
+
+- `init('<YOUR_APP_KEY>')`
+- `init({ ...allOptionsOptional })`
+
+`initFromEnv()` remains available and resolves credentials from these env keys:
 
 - `PRODINFOS_WRITE_KEY`
 - `NEXT_PUBLIC_PRODINFOS_WRITE_KEY`
 - `EXPO_PUBLIC_PRODINFOS_WRITE_KEY`
 - `VITE_PRODINFOS_WRITE_KEY`
+
+Optional legacy project-id env keys (not required):
+
 - `PRODINFOS_PROJECT_ID`
 - `NEXT_PUBLIC_PRODINFOS_PROJECT_ID`
 - `EXPO_PUBLIC_PRODINFOS_PROJECT_ID`
@@ -54,12 +62,15 @@ const analytics = initFromEnv({
 
 ```ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initFromEnv } from '@prodinfos/sdk-ts';
+import * as Application from 'expo-application';
+import { Platform } from 'react-native';
+import { init } from '@prodinfos/sdk-ts';
 
-const analytics = initFromEnv({
+const analytics = init({
+  apiKey: process.env.EXPO_PUBLIC_PRODINFOS_WRITE_KEY,
   debug: typeof __DEV__ === 'boolean' ? __DEV__ : false,
-  platform: 'react-native',
-  appVersion: '1.0.0',
+  platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+  appVersion: Application.nativeApplicationVersion ?? undefined,
   dedupeOnboardingStepViewsPerSession: true,
   storage: {
     getItem: (key) => AsyncStorage.getItem(key),
@@ -71,7 +82,8 @@ const analytics = initFromEnv({
 void analytics.ready();
 ```
 
-Use your project-specific write key and `projectId` from the Prodinfos dashboard in your workspace.
+Use your project-specific write key from the Prodinfos dashboard in your workspace.
+`projectId` is optional and only needed for legacy compatibility.
 The SDK uses the default collector endpoint internally.
 In host apps, do not pass `endpoint` and do not add `PRODINFOS_ENDPOINT` env vars.
 

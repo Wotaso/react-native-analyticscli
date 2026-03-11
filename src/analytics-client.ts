@@ -21,6 +21,7 @@ import {
 } from './constants.js';
 import {
   combineStorageAdapters,
+  detectDefaultAppVersion,
   detectDefaultPlatform,
   detectRuntimeEnv,
   nowIso,
@@ -92,7 +93,7 @@ export class AnalyticsClient {
 
     this.apiKey = this.readRequiredStringOption(normalizedOptions.apiKey);
     this.projectId = this.readRequiredStringOption(normalizedOptions.projectId);
-    this.hasIngestConfig = Boolean(this.apiKey && this.projectId);
+    this.hasIngestConfig = Boolean(this.apiKey);
     this.endpoint = (
       this.readRequiredStringOption(normalizedOptions.endpoint) || DEFAULT_COLLECTOR_ENDPOINT
     ).replace(/\/$/, '');
@@ -100,8 +101,9 @@ export class AnalyticsClient {
     this.flushIntervalMs = normalizedOptions.flushIntervalMs ?? 5000;
     this.maxRetries = normalizedOptions.maxRetries ?? 4;
     this.debug = normalizedOptions.debug ?? false;
-    this.platform = normalizedOptions.platform ?? detectDefaultPlatform();
-    this.appVersion = normalizedOptions.appVersion;
+    this.platform = this.normalizePlatformOption(normalizedOptions.platform) ?? detectDefaultPlatform();
+    this.appVersion =
+      this.readRequiredStringOption(normalizedOptions.appVersion) || detectDefaultAppVersion();
     this.context = { ...(normalizedOptions.context ?? {}) };
     this.runtimeEnv = detectRuntimeEnv();
     const useCookieStorage = normalizedOptions.useCookieStorage ?? Boolean(normalizedOptions.cookieDomain);
@@ -148,7 +150,7 @@ export class AnalyticsClient {
    */
   public setConsent(granted: boolean): void {
     if (granted && !this.hasIngestConfig) {
-      this.log('Ignoring consent opt-in because `apiKey` or `projectId` is missing');
+      this.log('Ignoring consent opt-in because `apiKey` is missing');
       return;
     }
 
@@ -541,7 +543,7 @@ export class AnalyticsClient {
     const batch = this.queue.splice(0, this.batchSize);
 
     const payload: IngestBatch = {
-      projectId: this.projectId,
+      ...(this.projectId ? { projectId: this.projectId } : {}),
       sentAt: nowIso(),
       events: batch,
     };
@@ -1001,6 +1003,14 @@ export class AnalyticsClient {
     }
 
     return value.trim();
+  }
+
+  private normalizePlatformOption(value: unknown): string | undefined {
+    const normalized = this.readRequiredStringOption(value).toLowerCase();
+    if (normalized === 'web' || normalized === 'ios' || normalized === 'android') {
+      return normalized;
+    }
+    return undefined;
   }
 
   private log(message: string, data?: unknown): void {

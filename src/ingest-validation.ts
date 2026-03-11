@@ -2,7 +2,7 @@ import { DEFAULT_INGEST_LIMITS, EVENT_NAME_REGEX } from './sdk-contract.js';
 import type { QueuedEvent } from './types.js';
 
 type IngestBatch = {
-  projectId: string;
+  projectId?: string;
   sentAt?: string;
   events: QueuedEvent[];
 };
@@ -150,7 +150,7 @@ const validateEvent = (event: unknown, index: number): IngestValidationResult =>
 };
 
 export const validateIngestBatch = (batch: IngestBatch): IngestValidationResult => {
-  if (!UUID_REGEX.test(batch.projectId)) {
+  if (batch.projectId !== undefined && !UUID_REGEX.test(batch.projectId)) {
     return { success: false, reason: 'projectId is invalid' };
   }
 

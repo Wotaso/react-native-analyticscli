@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  detectDefaultAppVersion,
   detectDefaultPlatform,
   detectRuntimeEnv,
   readStorageAsync,
@@ -77,10 +78,36 @@ test('writeStorageSync swallows sync and async storage failures', async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 });
 
-test('detectDefaultPlatform returns react-native when navigator.product matches', async () => {
+test('detectDefaultPlatform returns undefined when only ReactNative product is known', async () => {
   await withGlobalProperty('navigator', { product: 'ReactNative' }, () => {
-    assert.equal(detectDefaultPlatform(), 'react-native');
+    assert.equal(detectDefaultPlatform(), undefined);
   });
+});
+
+test('detectDefaultPlatform resolves native os when Platform.OS is available', async () => {
+  await withGlobalProperty('Platform' as keyof typeof globalThis, { OS: 'ios' }, () => {
+    assert.equal(detectDefaultPlatform(), 'ios');
+  });
+});
+
+test('detectDefaultAppVersion reads Expo application version hints', async () => {
+  await withGlobalProperty(
+    'expo' as keyof typeof globalThis,
+    {
+      modules: {
+        ExpoApplication: {
+          nativeApplicationVersion: '2.3.4',
+        },
+      },
+    },
+    () => {
+      assert.equal(detectDefaultAppVersion(), '2.3.4');
+    },
+  );
+});
+
+test('detectDefaultAppVersion returns undefined when no runtime hint is present', () => {
+  assert.equal(detectDefaultAppVersion(), undefined);
 });
 
 test('detectRuntimeEnv prioritizes __DEV__ then process env', async () => {
