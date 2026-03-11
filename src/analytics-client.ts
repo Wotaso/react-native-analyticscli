@@ -55,7 +55,6 @@ import type {
 
 export class AnalyticsClient {
   private readonly apiKey: string;
-  private readonly projectId: string;
   private readonly hasIngestConfig: boolean;
   private readonly endpoint: string;
   private readonly batchSize: number;
@@ -92,7 +91,6 @@ export class AnalyticsClient {
     const normalizedOptions = this.normalizeOptions(options);
 
     this.apiKey = this.readRequiredStringOption(normalizedOptions.apiKey);
-    this.projectId = this.readRequiredStringOption(normalizedOptions.projectId);
     this.hasIngestConfig = Boolean(this.apiKey);
     this.endpoint = (
       this.readRequiredStringOption(normalizedOptions.endpoint) || DEFAULT_COLLECTOR_ENDPOINT
@@ -543,7 +541,6 @@ export class AnalyticsClient {
     const batch = this.queue.splice(0, this.batchSize);
 
     const payload: IngestBatch = {
-      ...(this.projectId ? { projectId: this.projectId } : {}),
       sentAt: nowIso(),
       events: batch,
     };
@@ -1007,8 +1004,20 @@ export class AnalyticsClient {
 
   private normalizePlatformOption(value: unknown): string | undefined {
     const normalized = this.readRequiredStringOption(value).toLowerCase();
-    if (normalized === 'web' || normalized === 'ios' || normalized === 'android') {
+    if (
+      normalized === 'web' ||
+      normalized === 'ios' ||
+      normalized === 'android' ||
+      normalized === 'mac' ||
+      normalized === 'windows'
+    ) {
       return normalized;
+    }
+    if (normalized === 'macos' || normalized === 'osx' || normalized === 'darwin') {
+      return 'mac';
+    }
+    if (normalized === 'win32') {
+      return 'windows';
     }
     return undefined;
   }

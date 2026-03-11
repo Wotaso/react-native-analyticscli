@@ -45,7 +45,6 @@ export type {
 export { AnalyticsClient } from './analytics-client.js';
 export {
   DEFAULT_API_KEY_ENV_KEYS,
-  DEFAULT_PROJECT_ID_ENV_KEYS,
   initFromEnv,
 } from './bootstrap.js';
 import { AnalyticsClient } from './analytics-client.js';

@@ -90,6 +90,16 @@ test('detectDefaultPlatform resolves native os when Platform.OS is available', a
   });
 });
 
+test('detectDefaultPlatform normalizes macOS and Windows platform values', async () => {
+  await withGlobalProperty('Platform' as keyof typeof globalThis, { OS: 'macos' }, () => {
+    assert.equal(detectDefaultPlatform(), 'mac');
+  });
+
+  await withGlobalProperty('Platform' as keyof typeof globalThis, { OS: 'windows' }, () => {
+    assert.equal(detectDefaultPlatform(), 'windows');
+  });
+});
+
 test('detectDefaultAppVersion reads Expo application version hints', async () => {
   await withGlobalProperty(
     'expo' as keyof typeof globalThis,

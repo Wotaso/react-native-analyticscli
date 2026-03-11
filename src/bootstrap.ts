@@ -8,13 +8,6 @@ export const DEFAULT_API_KEY_ENV_KEYS = [
   'VITE_PRODINFOS_WRITE_KEY',
 ] as const;
 
-export const DEFAULT_PROJECT_ID_ENV_KEYS = [
-  'PRODINFOS_PROJECT_ID',
-  'NEXT_PUBLIC_PRODINFOS_PROJECT_ID',
-  'EXPO_PUBLIC_PRODINFOS_PROJECT_ID',
-  'VITE_PRODINFOS_PROJECT_ID',
-] as const;
-
 const readTrimmedString = (value: unknown): string => {
   if (typeof value === 'string') {
     return value.trim();
@@ -62,34 +55,27 @@ const toMissingMessage = (details: InitFromEnvMissingConfig): string => {
 
 /**
  * Minimal host-app bootstrap helper.
- * Resolves `apiKey` (required) and optional `projectId` from explicit options or env-like objects.
+ * Resolves `apiKey` (required) from explicit options or env-like objects.
  */
 export const initFromEnv = (options: InitFromEnvOptions = {}): AnalyticsClient => {
   const {
     env,
     apiKey,
-    projectId,
     apiKeyEnvKeys,
-    projectIdEnvKeys,
     missingConfigMode = 'noop',
     onMissingConfig,
     ...clientOptions
   } = options;
 
   const resolvedApiKeyEnvKeys = [...(apiKeyEnvKeys ?? DEFAULT_API_KEY_ENV_KEYS)];
-  const resolvedProjectIdEnvKeys = [...(projectIdEnvKeys ?? DEFAULT_PROJECT_ID_ENV_KEYS)];
 
   const envSource = env ?? resolveDefaultEnv();
   const resolvedApiKey =
     readTrimmedString(apiKey) || resolveValueFromEnv(envSource, resolvedApiKeyEnvKeys);
-  const resolvedProjectId =
-    readTrimmedString(projectId) || resolveValueFromEnv(envSource, resolvedProjectIdEnvKeys);
 
   const missingConfig: InitFromEnvMissingConfig = {
     missingApiKey: resolvedApiKey.length === 0,
-    missingProjectId: false,
     searchedApiKeyEnvKeys: resolvedApiKeyEnvKeys,
-    searchedProjectIdEnvKeys: resolvedProjectIdEnvKeys,
   };
 
   if (missingConfig.missingApiKey) {
@@ -103,6 +89,5 @@ export const initFromEnv = (options: InitFromEnvOptions = {}): AnalyticsClient =
   return new AnalyticsClient({
     ...clientOptions,
     apiKey: resolvedApiKey,
-    projectId: resolvedProjectId,
   });
 };

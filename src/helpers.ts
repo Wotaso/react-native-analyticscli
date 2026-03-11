@@ -89,15 +89,29 @@ const readTrimmedString = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const normalizePlatformValue = (value: unknown): 'web' | 'ios' | 'android' | undefined => {
+const normalizePlatformValue = (
+  value: unknown,
+): 'web' | 'ios' | 'android' | 'mac' | 'windows' | undefined => {
   const normalized = readTrimmedString(value)?.toLowerCase();
-  if (normalized === 'web' || normalized === 'ios' || normalized === 'android') {
+  if (
+    normalized === 'web' ||
+    normalized === 'ios' ||
+    normalized === 'android' ||
+    normalized === 'mac' ||
+    normalized === 'windows'
+  ) {
     return normalized;
+  }
+  if (normalized === 'macos' || normalized === 'osx' || normalized === 'darwin') {
+    return 'mac';
+  }
+  if (normalized === 'win32') {
+    return 'windows';
   }
   return undefined;
 };
 
-const readGlobalPlatformOs = (): 'web' | 'ios' | 'android' | undefined => {
+const readGlobalPlatformOs = (): 'web' | 'ios' | 'android' | 'mac' | 'windows' | undefined => {
   const withPlatform = globalThis as typeof globalThis & {
     Platform?: { OS?: unknown };
   };

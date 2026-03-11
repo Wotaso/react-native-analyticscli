@@ -164,11 +164,6 @@ export type AnalyticsClientOptions = {
    */
   apiKey?: string;
   /**
-   * Optional project id from the Prodinfos dashboard.
-   * Not required for normal ingestion; primarily for legacy compatibility and explicit scoping.
-   */
-  projectId?: string;
-  /**
    * Optional collector override reserved for SDK/internal testing.
    * Host app integrations should not set this option.
    */
@@ -221,18 +216,10 @@ export type InitFromEnvMissingConfigMode = 'noop' | 'throw';
 
 export type InitFromEnvMissingConfig = {
   missingApiKey: boolean;
-  /**
-   * @deprecated projectId is optional for ingest; retained for backward compatibility.
-   */
-  missingProjectId?: boolean;
   searchedApiKeyEnvKeys: string[];
-  /**
-   * @deprecated projectId is optional for ingest; retained for backward compatibility.
-   */
-  searchedProjectIdEnvKeys?: string[];
 };
 
-export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey' | 'projectId'> & {
+export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey'> & {
   /**
    * Optional environment-like object.
    * Defaults to `globalThis.process?.env` when available.
@@ -243,17 +230,9 @@ export type InitFromEnvOptions = Omit<AnalyticsClientOptions, 'apiKey' | 'projec
    */
   apiKey?: string;
   /**
-   * Explicit project id override (optional).
-   */
-  projectId?: string;
-  /**
    * Candidate env keys resolved in order.
    */
   apiKeyEnvKeys?: string[];
-  /**
-   * Candidate env keys resolved in order (optional fallback for legacy payloads).
-   */
-  projectIdEnvKeys?: string[];
   /**
    * How missing config is handled.
    * - `noop` (default): returns a safe no-op client

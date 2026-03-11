@@ -42,13 +42,6 @@ analytics.trackOnboardingEvent(ONBOARDING_EVENTS.START, {
 - `EXPO_PUBLIC_PRODINFOS_WRITE_KEY`
 - `VITE_PRODINFOS_WRITE_KEY`
 
-Optional legacy project-id env keys (not required):
-
-- `PRODINFOS_PROJECT_ID`
-- `NEXT_PUBLIC_PRODINFOS_PROJECT_ID`
-- `EXPO_PUBLIC_PRODINFOS_PROJECT_ID`
-- `VITE_PRODINFOS_PROJECT_ID`
-
 If config is missing, the client is a safe no-op (default behavior).
 Use strict mode if you want hard failure:
 
@@ -69,7 +62,15 @@ import { init } from '@prodinfos/sdk-ts';
 const analytics = init({
   apiKey: process.env.EXPO_PUBLIC_PRODINFOS_WRITE_KEY,
   debug: typeof __DEV__ === 'boolean' ? __DEV__ : false,
-  platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+  platform:
+    Platform.OS === 'ios' ||
+    Platform.OS === 'android' ||
+    Platform.OS === 'windows' ||
+    Platform.OS === 'macos'
+      ? Platform.OS === 'macos'
+        ? 'mac'
+        : Platform.OS
+      : undefined,
   appVersion: Application.nativeApplicationVersion ?? undefined,
   dedupeOnboardingStepViewsPerSession: true,
   storage: {
@@ -83,7 +84,6 @@ void analytics.ready();
 ```
 
 Use your project-specific write key from the Prodinfos dashboard in your workspace.
-`projectId` is optional and only needed for legacy compatibility.
 The SDK uses the default collector endpoint internally.
 In host apps, do not pass `endpoint` and do not add `PRODINFOS_ENDPOINT` env vars.
 

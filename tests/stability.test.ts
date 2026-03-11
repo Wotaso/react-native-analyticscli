@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { init, ONBOARDING_EVENTS, PAYWALL_EVENTS } from '../src/index.js';
 
-const PROJECT_ID = '11111111-1111-4111-8111-111111111111';
-
 test('public SDK API remains no-throw under transient network failures', async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
@@ -24,7 +22,6 @@ test('public SDK API remains no-throw under transient network failures', async (
 
   const client = init({
     apiKey: 'pi_live_test',
-    projectId: PROJECT_ID,
     endpoint: 'https://collector.prodinfos.com',
     batchSize: 50,
     flushIntervalMs: 60_000,
@@ -86,7 +83,6 @@ test('ready() resolves even when async storage adapters fail', async () => {
 
   const client = init({
     apiKey: 'pi_live_test',
-    projectId: PROJECT_ID,
     endpoint: 'https://collector.prodinfos.com',
     storage: {
       getItem: async () => {
@@ -121,7 +117,6 @@ test('init() tolerates non-string required options from untyped JS call sites', 
 
   const client = init({
     apiKey: null as unknown as string,
-    projectId: null as unknown as string,
     endpoint: null as unknown as string,
     flushIntervalMs: 60_000,
     maxRetries: 0,
