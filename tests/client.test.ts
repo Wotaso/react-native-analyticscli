@@ -447,6 +447,25 @@ test('init() without credentials is a safe no-op client', async () => {
   });
 });
 
+test('init() with empty apiKey string logs a configuration error and stays no-op', async () => {
+  await withMockedConsoleError(async (errorCalls) => {
+    await withMockedGlobals(async (calls) => {
+      const client = init('   ');
+
+      try {
+        client.track('onboarding:start');
+        await client.flush();
+
+        assert.equal(calls.length, 0);
+        assert.equal(errorCalls.length, 1);
+        assert.match(String(errorCalls[0]?.[0] ?? ''), /Missing required `apiKey`/);
+      } finally {
+        client.shutdown();
+      }
+    });
+  });
+});
+
 test('optOut() disables enqueue and prevents network calls', async () => {
   await withMockedGlobals(async (calls) => {
     const client = init({
