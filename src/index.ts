@@ -48,7 +48,8 @@ export {
   initFromEnv,
 } from './bootstrap.js';
 import { AnalyticsClient } from './analytics-client.js';
-import type { InitInput, InitOptions } from './types.js';
+import { initFromEnv } from './bootstrap.js';
+import type { InitFromEnvOptions, InitInput, InitOptions } from './types.js';
 
 const normalizeInitInput = (input: InitInput): InitOptions => {
   if (typeof input === 'string') {
@@ -72,4 +73,49 @@ export const initAsync = async (input: InitInput = {}): Promise<AnalyticsClient>
   const client = new AnalyticsClient(normalizeInitInput(input));
   await client.ready();
   return client;
+};
+
+export const BROWSER_API_KEY_ENV_KEYS = [
+  'ANALYTICSCLI_WRITE_KEY',
+  'NEXT_PUBLIC_ANALYTICSCLI_WRITE_KEY',
+  'PUBLIC_ANALYTICSCLI_WRITE_KEY',
+  'VITE_ANALYTICSCLI_WRITE_KEY',
+  'EXPO_PUBLIC_ANALYTICSCLI_WRITE_KEY',
+] as const;
+
+export const REACT_NATIVE_API_KEY_ENV_KEYS = [
+  'ANALYTICSCLI_WRITE_KEY',
+  'EXPO_PUBLIC_ANALYTICSCLI_WRITE_KEY',
+] as const;
+
+export type BrowserInitFromEnvOptions = Omit<InitFromEnvOptions, 'apiKeyEnvKeys'> & {
+  apiKeyEnvKeys?: readonly string[];
+};
+
+export type ReactNativeInitFromEnvOptions = Omit<InitFromEnvOptions, 'apiKeyEnvKeys'> & {
+  apiKeyEnvKeys?: readonly string[];
+};
+
+/**
+ * Browser-focused env bootstrap.
+ * Supports common env prefixes across Next.js, Astro/Vite and Expo web.
+ */
+export const initBrowserFromEnv = (options: BrowserInitFromEnvOptions = {}) => {
+  const { apiKeyEnvKeys, ...rest } = options;
+  return initFromEnv({
+    ...rest,
+    apiKeyEnvKeys: [...(apiKeyEnvKeys ?? BROWSER_API_KEY_ENV_KEYS)],
+  });
+};
+
+/**
+ * React Native-focused env bootstrap.
+ * Defaults to native-friendly env keys while still allowing explicit overrides.
+ */
+export const initReactNativeFromEnv = (options: ReactNativeInitFromEnvOptions = {}) => {
+  const { apiKeyEnvKeys, ...rest } = options;
+  return initFromEnv({
+    ...rest,
+    apiKeyEnvKeys: [...(apiKeyEnvKeys ?? REACT_NATIVE_API_KEY_ENV_KEYS)],
+  });
 };

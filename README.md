@@ -1,4 +1,4 @@
-# react-native-analyticscli
+# @analyticscli/sdk
 
 TypeScript SDK for tenant developers sending onboarding, paywall, purchase, and survey analytics events to the AnalyticsCLI ingest API.
 
@@ -9,19 +9,19 @@ Once stable releases exist, `latest` is pinned to the newest stable.
 ## Install
 
 ```bash
-npm install react-native-analyticscli@preview
+npm install @analyticscli/sdk@preview
 ```
 
 When a stable release becomes available, install without a tag:
 
 ```bash
-npm install react-native-analyticscli
+npm install @analyticscli/sdk
 ```
 
 ## Usage (Low Boilerplate)
 
 ```ts
-import { init, ONBOARDING_EVENTS } from 'react-native-analyticscli';
+import { init, ONBOARDING_EVENTS } from '@analyticscli/sdk';
 
 const analytics = init('<YOUR_APP_KEY>'); // short form
 
@@ -42,6 +42,16 @@ analytics.trackOnboardingEvent(ONBOARDING_EVENTS.START, {
 - `EXPO_PUBLIC_ANALYTICSCLI_WRITE_KEY`
 - `VITE_ANALYTICSCLI_WRITE_KEY`
 
+Runtime-specific env helpers are also available:
+
+- `@analyticscli/sdk` -> `initBrowserFromEnv(...)`
+  - adds `PUBLIC_ANALYTICSCLI_WRITE_KEY` lookup for Astro/browser-first setups
+- `@analyticscli/sdk` -> `initReactNativeFromEnv(...)`
+  - defaults to native-friendly env key lookup
+- optional compatibility subpaths:
+  - `@analyticscli/sdk/browser`
+  - `@analyticscli/sdk/react-native`
+
 If config is missing, the client is a safe no-op (default behavior).
 When `apiKey` is missing, the SDK logs a console error and remains no-op.
 Use strict mode if you want hard failure:
@@ -58,7 +68,7 @@ const analytics = initFromEnv({
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
 import { Platform } from 'react-native';
-import { init } from 'react-native-analyticscli';
+import { init } from '@analyticscli/sdk';
 
 const analytics = init({
   apiKey: process.env.EXPO_PUBLIC_ANALYTICSCLI_WRITE_KEY,
@@ -88,6 +98,9 @@ Use your project-specific write key from the AnalyticsCLI dashboard in your work
 Only the write key (`apiKey`) is needed for SDK init calls.
 The SDK uses the default collector endpoint internally.
 In host apps, do not pass `endpoint` and do not add `ANALYTICSCLI_ENDPOINT` env vars.
+
+For browser subdomain continuity, set `cookieDomain` (for example `.analyticscli.com`).
+For redirects across different domains, use a backend-issued short-lived handoff token rather than relying on third-party cookies.
 
 ## Releases
 
