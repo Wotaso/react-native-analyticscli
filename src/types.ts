@@ -40,6 +40,7 @@ export type OnboardingEventProperties = EventProperties & {
   isNewUser?: boolean;
   onboardingFlowId?: string;
   onboardingFlowVersion?: string | number;
+  onboardingExperimentId?: string;
   stepKey?: string;
   stepIndex?: number;
   stepCount?: number;
@@ -49,6 +50,8 @@ export type PaywallEventProperties = EventProperties & {
   source: string;
   fromScreen?: string;
   paywallId?: string;
+  offering?: string;
+  paywallEntryId?: string;
   packageId?: string;
   price?: number;
   currency?: string;
@@ -77,6 +80,7 @@ export type OnboardingSurveyResponseInput = {
   isNewUser?: boolean;
   onboardingFlowId?: string;
   onboardingFlowVersion?: string | number;
+  onboardingExperimentId?: string;
   stepKey?: string;
   stepIndex?: number;
   stepCount?: number;

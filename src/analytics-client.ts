@@ -392,11 +392,14 @@ export class AnalyticsClient {
 
   /**
    * Creates a scoped paywall tracker that applies shared paywall defaults to every journey event.
-   * Useful when a flow has a stable `source`, `paywallId`, or experiment metadata.
+   * Useful when a flow has a stable `source`, `paywallId`, `offering`, or experiment metadata.
    */
   public createPaywallTracker(defaults: PaywallTrackerDefaults): PaywallTracker {
     const { source: rawDefaultSource, ...defaultProperties } = defaults;
     const defaultSource = this.readRequiredStringOption(rawDefaultSource);
+    let currentPaywallEntryId = this.readRequiredStringOption(
+      this.readPropertyAsString(defaultProperties.paywallEntryId),
+    );
     if (!defaultSource) {
       this.log('createPaywallTracker() called without a valid default `source`');
     }
@@ -413,8 +416,32 @@ export class AnalyticsClient {
       };
     };
 
+    const resolvePaywallEntryId = (properties: PaywallEventProperties): string | undefined => {
+      return this.readRequiredStringOption(this.readPropertyAsString(properties.paywallEntryId)) || undefined;
+    };
+
     const track = (eventName: PaywallJourneyEventName, properties?: PaywallTrackerProperties) => {
-      this.trackPaywallEvent(eventName, mergeProperties(properties));
+      const mergedProperties = mergeProperties(properties);
+
+      if (eventName === PAYWALL_EVENTS.SHOWN) {
+        const explicitEntryId = resolvePaywallEntryId(mergedProperties);
+        currentPaywallEntryId = explicitEntryId ?? randomId();
+        mergedProperties.paywallEntryId = currentPaywallEntryId;
+      } else {
+        const explicitEntryId = resolvePaywallEntryId(mergedProperties);
+        if (explicitEntryId) {
+          currentPaywallEntryId = explicitEntryId;
+          mergedProperties.paywallEntryId = explicitEntryId;
+        } else if (currentPaywallEntryId) {
+          mergedProperties.paywallEntryId = currentPaywallEntryId;
+        }
+
+        if (properties?.offering === undefined) {
+          delete mergedProperties.offering;
+        }
+      }
+
+      this.trackPaywallEvent(eventName, mergedProperties);
     };
 
     return {

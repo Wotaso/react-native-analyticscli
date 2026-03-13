@@ -529,17 +529,20 @@ test('typed onboarding/paywall wrappers emit canonical event names', async () =>
       client.trackOnboardingEvent(ONBOARDING_EVENTS.START, {
         isNewUser: true,
         onboardingFlowId: 'onboarding_v4',
+        onboardingExperimentId: 'exp_onboarding_v4',
         stepIndex: 0,
         stepCount: 5,
       });
       client.trackPaywallEvent(PAYWALL_EVENTS.SHOWN, {
         source: 'onboarding',
         paywallId: 'default_paywall',
+        offering: 'rc_main',
         fromScreen: 'onboarding_paywall',
       });
       client.trackPaywallEvent(PURCHASE_EVENTS.SUCCESS, {
         source: 'onboarding',
         paywallId: 'default_paywall',
+        offering: 'rc_main',
         packageId: 'annual',
       });
 
@@ -562,6 +565,9 @@ test('typed onboarding/paywall wrappers emit canonical event names', async () =>
         payload.events.map((event) => event.properties?.sessionEventIndex),
         [1, 2, 3],
       );
+      assert.equal(payload.events[0]?.properties?.onboardingExperimentId, 'exp_onboarding_v4');
+      assert.equal(payload.events[1]?.properties?.offering, 'rc_main');
+      assert.equal(payload.events[2]?.properties?.offering, 'rc_main');
     } finally {
       client.shutdown();
     }
@@ -582,6 +588,7 @@ test('createPaywallTracker() applies shared defaults and supports all journey he
       const paywall = client.createPaywallTracker({
         source: 'onboarding',
         paywallId: 'default_paywall',
+        offering: 'rc_main',
         appVersion: '2.1.0',
         experimentVariant: 'B',
       });
@@ -611,13 +618,88 @@ test('createPaywallTracker() applies shared defaults and supports all journey he
       const first = payload.events[0]?.properties ?? {};
       assert.equal(first.source, 'onboarding');
       assert.equal(first.paywallId, 'default_paywall');
+      assert.equal(first.offering, 'rc_main');
       assert.equal(first.appVersion, '2.1.0');
       assert.equal(first.experimentVariant, 'B');
       assert.equal(first.fromScreen, 'onboarding_offer');
+      assert.equal(typeof first.paywallEntryId, 'string');
+      assert.ok(String(first.paywallEntryId).length > 0);
+
+      const firstEntryId = String(first.paywallEntryId);
+      const second = payload.events[1]?.properties ?? {};
+      const third = payload.events[2]?.properties ?? {};
+      assert.equal(second.paywallEntryId, firstEntryId);
+      assert.equal(third.paywallEntryId, firstEntryId);
+      assert.equal(second.offering, undefined);
+      assert.equal(third.offering, undefined);
 
       const override = payload.events[3]?.properties ?? {};
       assert.equal(override.source, 'settings');
       assert.equal(override.paywallId, 'default_paywall');
+      assert.equal(override.paywallEntryId, firstEntryId);
+      assert.equal(override.offering, undefined);
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
+test('createPaywallTracker() rotates paywallEntryId per shown event and keeps offering on shown only', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init({
+      apiKey: 'pi_live_test',
+      endpoint: 'https://collector.analyticscli.com',
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      const paywall = client.createPaywallTracker({
+        source: 'onboarding',
+        paywallId: 'default_paywall',
+        offering: 'rc_main',
+      });
+
+      paywall.shown();
+      paywall.purchaseStarted({ packageId: 'annual' });
+      paywall.shown({ offering: 'rc_alt' });
+      paywall.purchaseCancel({ packageId: 'annual' });
+
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        events: Array<{ eventName: string; properties?: Record<string, unknown> }>;
+      };
+
+      assert.deepEqual(
+        payload.events.map((event) => event.eventName),
+        [
+          PAYWALL_EVENTS.SHOWN,
+          PURCHASE_EVENTS.STARTED,
+          PAYWALL_EVENTS.SHOWN,
+          PURCHASE_EVENTS.CANCEL,
+        ],
+      );
+
+      const firstShown = payload.events[0]?.properties ?? {};
+      const firstPurchase = payload.events[1]?.properties ?? {};
+      const secondShown = payload.events[2]?.properties ?? {};
+      const secondPurchase = payload.events[3]?.properties ?? {};
+
+      assert.equal(firstShown.offering, 'rc_main');
+      assert.equal(secondShown.offering, 'rc_alt');
+      assert.equal(firstPurchase.offering, undefined);
+      assert.equal(secondPurchase.offering, undefined);
+
+      const firstEntryId = String(firstShown.paywallEntryId ?? '');
+      const secondEntryId = String(secondShown.paywallEntryId ?? '');
+      assert.ok(firstEntryId.length > 0);
+      assert.ok(secondEntryId.length > 0);
+      assert.notEqual(firstEntryId, secondEntryId);
+      assert.equal(firstPurchase.paywallEntryId, firstEntryId);
+      assert.equal(secondPurchase.paywallEntryId, secondEntryId);
     } finally {
       client.shutdown();
     }
