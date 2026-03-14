@@ -2,6 +2,9 @@
 
 TypeScript-first SDK for tenant developers sending onboarding, paywall, purchase, and survey analytics events to the AnalyticsCLI ingest API.
 
+Using a coding agent: you can let it handle SDK integration and instrumentation end-to-end with the AnalyticsCLI skills repo:
+https://github.com/Wotaso/analyticscli-skills
+
 Use the same package in:
 - React Native / Expo apps
 - Browser React apps
