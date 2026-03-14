@@ -6,7 +6,7 @@ Thanks for your interest in this SDK.
 
 - Issues are welcome (bug reports, feature requests, integration questions).
 - External pull requests are currently not accepted by default.
-- Maintainers may still open PRs for internal collaboration.
+- Maintainers may still open PRs for project maintenance.
 
 This keeps the release process predictable while the SDK and backend contract is evolving quickly.
 
