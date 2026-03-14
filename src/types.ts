@@ -9,14 +9,24 @@ import type {
  */
 export type EventProperties = Record<string, unknown>;
 
+export type StorageGetItemCallback = (error?: Error | null, value?: string | null) => void;
+export type StorageMutationCallback = (error?: Error | null) => void;
+
 export type AnalyticsStorageAdapter = {
   /**
    * Storage APIs can be sync or async.
-   * This allows plugging in AsyncStorage (React Native), MMKV wrappers, or custom secure stores.
+   * This allows passing AsyncStorage/localStorage directly, or custom adapters.
    */
-  getItem: (key: string) => string | null | Promise<string | null>;
-  setItem: (key: string, value: string) => void | Promise<void>;
-  removeItem?: (key: string) => void | Promise<void>;
+  getItem: (
+    key: string,
+    callback?: StorageGetItemCallback,
+  ) => string | null | Promise<string | null>;
+  setItem: (
+    key: string,
+    value: string,
+    callback?: StorageMutationCallback,
+  ) => void | Promise<void>;
+  removeItem?: (key: string, callback?: StorageMutationCallback) => void | Promise<void>;
 };
 
 export type EventContext = {
@@ -180,11 +190,19 @@ export type AnalyticsClientOptions = {
    * Defaults to `false`.
    *
    * React Native/Expo recommendation:
-   * `debug: typeof __DEV__ === 'boolean' ? __DEV__ : false`
+   * `debug: __DEV__`
    */
   debug?: boolean;
-  platform?: string;
-  appVersion?: string;
+  /**
+   * Optional platform hint.
+   * React Native/Expo: passing `Platform.OS` directly is supported.
+   */
+  platform?: string | null;
+  /**
+   * Optional app version hint.
+   * Accepts nullable runtime values (for example Expo's `nativeApplicationVersion`).
+   */
+  appVersion?: string | null;
   context?: EventContext;
   /**
    * Optional custom persistence adapter.

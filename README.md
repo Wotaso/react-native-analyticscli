@@ -1,6 +1,11 @@
 # @analyticscli/sdk
 
-TypeScript SDK for tenant developers sending onboarding, paywall, purchase, and survey analytics events to the AnalyticsCLI ingest API.
+TypeScript-first SDK for tenant developers sending onboarding, paywall, purchase, and survey analytics events to the AnalyticsCLI ingest API.
+
+Use the same package in:
+- React Native / Expo apps
+- Browser React apps
+- plain JavaScript and TypeScript codebases
 
 Current npm release channel: preview / experimental beta.
 If no stable release exists yet, `latest` points to the newest preview.
@@ -72,27 +77,45 @@ import { init } from '@analyticscli/sdk';
 
 const analytics = init({
   apiKey: process.env.EXPO_PUBLIC_ANALYTICSCLI_WRITE_KEY,
-  debug: typeof __DEV__ === 'boolean' ? __DEV__ : false,
-  platform:
-    Platform.OS === 'ios' ||
-    Platform.OS === 'android' ||
-    Platform.OS === 'windows' ||
-    Platform.OS === 'macos'
-      ? Platform.OS === 'macos'
-        ? 'mac'
-        : Platform.OS
-      : undefined,
-  appVersion: Application.nativeApplicationVersion ?? undefined,
+  debug: __DEV__,
+  platform: Platform.OS,
+  appVersion: Application.nativeApplicationVersion,
   dedupeOnboardingStepViewsPerSession: true,
-  storage: {
-    getItem: (key) => AsyncStorage.getItem(key),
-    setItem: (key, value) => AsyncStorage.setItem(key, value),
-    removeItem: (key) => AsyncStorage.removeItem(key),
-  },
+  storage: AsyncStorage,
 });
-
-void analytics.ready();
 ```
+
+The SDK normalizes React Native/Expo platform values to canonical ingest values
+(`macos` -> `mac`, `win32` -> `windows`) and accepts `null` for optional
+`appVersion` inputs.
+
+`dedupeOnboardingStepViewsPerSession` only dedupes duplicate
+`onboarding:step_view` events for the same step in the same session (for
+example, when React effects fire twice or the screen remounts). It does not
+dedupe paywall events, purchase events, or `screen(...)` calls.
+
+`storage` is optional, but recommended in React Native. With AsyncStorage, the
+SDK can persist `anonId` and `sessionId` across app restarts so funnels and
+journeys stay connected. Without storage, IDs are memory-only and reset on
+cold start.
+
+If your store already exposes `getItem` / `setItem` / `removeItem` (for example
+AsyncStorage, localStorage-like stores, or Expo key-value stores with the same
+method names), pass it directly as `storage`.
+
+If your store uses different method names, pass a small adapter object:
+
+```ts
+storage: {
+  getItem: (key) => store.read(key),
+  setItem: (key, value) => store.write(key, value),
+  removeItem: (key) => store.delete(key),
+}
+```
+
+You do not need `analytics.ready()` to start tracking. Tracking starts on
+`init(...)`. `ready()` is optional and only needed when you want to explicitly
+wait for async storage hydration before the very first app flow continues.
 
 Use your project-specific write key from the AnalyticsCLI dashboard in your workspace.
 Only the write key (`apiKey`) is needed for SDK init calls.

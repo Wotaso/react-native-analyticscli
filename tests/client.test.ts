@@ -297,6 +297,31 @@ test('normalizes macos platform option to canonical mac', async () => {
   });
 });
 
+test('accepts null appVersion option without requiring undefined coalescing', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init({
+      apiKey: 'pi_live_test',
+      appVersion: null,
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      client.track('onboarding:start');
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        events: Array<{ appVersion?: string }>;
+      };
+      assert.equal(payload.events[0]?.appVersion, undefined);
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
 test('initFromEnv() resolves credentials from default env keys', async () => {
   await withMockedGlobals(async (calls) => {
     const client = initFromEnv({
@@ -1409,6 +1434,67 @@ test('init() defers event identity/session binding until async storage hydration
 
     try {
       // Event is tracked before hydration settles.
+      client.track('app_open');
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        events: Array<{ anonId: string; sessionId: string; properties?: Record<string, unknown> }>;
+      };
+      const event = payload.events[0];
+
+      assert.equal(event?.anonId, 'persisted-device-id');
+      assert.equal(event?.sessionId, 'persisted-session-id');
+      assert.equal(event?.properties?.sessionEventIndex, 42);
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
+test('accepts AsyncStorage-style storage objects directly', async () => {
+  await withMockedGlobals(async (calls) => {
+    const now = Date.now();
+    const backingStore = new Map<string, string>([
+      ['pi_device_id', 'persisted-device-id'],
+      ['pi_session_id', 'persisted-session-id'],
+      ['pi_last_seen', String(now)],
+      ['pi_session_event_seq:persisted-session-id', '41'],
+    ]);
+
+    const asyncStorageLike = {
+      getItem: async (
+        key: string,
+        callback?: (error?: Error | null, value?: string | null) => void,
+      ): Promise<string | null> => {
+        const value = backingStore.get(key) ?? null;
+        callback?.(null, value);
+        return value;
+      },
+      setItem: async (
+        key: string,
+        value: string,
+        callback?: (error?: Error | null) => void,
+      ): Promise<void> => {
+        backingStore.set(key, value);
+        callback?.(null);
+      },
+      removeItem: async (key: string, callback?: (error?: Error | null) => void): Promise<void> => {
+        backingStore.delete(key);
+        callback?.(null);
+      },
+    };
+
+    const client = init({
+      apiKey: 'pi_live_test',
+      endpoint: 'https://collector.analyticscli.com',
+      storage: asyncStorageLike,
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
       client.track('app_open');
       await client.flush();
 
