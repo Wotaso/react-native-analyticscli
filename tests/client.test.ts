@@ -1041,6 +1041,38 @@ test('trackPaywallEvent() drops events missing required source property', async 
   });
 });
 
+test('trackPaywallEvent() ignores paywallEntryId in direct calls', async () => {
+  await withMockedGlobals(async (calls) => {
+    const client = init({
+      apiKey: 'pi_live_test',
+      endpoint: 'https://collector.analyticscli.com',
+      batchSize: 20,
+      flushIntervalMs: 60_000,
+      maxRetries: 0,
+    });
+
+    try {
+      client.trackPaywallEvent(PURCHASE_EVENTS.SUCCESS, {
+        source: 'onboarding',
+        paywallId: 'default_paywall',
+        paywallEntryId: 'manual_entry',
+        packageId: 'annual',
+      });
+
+      await client.flush();
+
+      assert.equal(calls.length, 1);
+      const payload = JSON.parse(String(calls[0]?.init?.body)) as {
+        events: Array<{ eventName: string; properties?: Record<string, unknown> }>;
+      };
+      assert.equal(payload.events[0]?.eventName, PURCHASE_EVENTS.SUCCESS);
+      assert.equal(payload.events[0]?.properties?.paywallEntryId, undefined);
+    } finally {
+      client.shutdown();
+    }
+  });
+});
+
 test('cookieDomain enables cross-subdomain id persistence via cookies', async () => {
   const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;

@@ -449,6 +449,7 @@ export class AnalyticsClient {
 
   /**
    * Sends a typed paywall/purchase journey event.
+   * Direct calls ignore `paywallEntryId`; use `createPaywallTracker(...)` for entry correlation.
    */
   public trackPaywallEvent(
     eventName: PaywallJourneyEventName,
